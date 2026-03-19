@@ -1,53 +1,114 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { REPORT_PARAMS, API_BASE_URL } from '../config/reportParams';
 
+// ─── Tipuri ──────────────────────────────────────────────────────────────────
+interface EPPoint { loss: number; exceedance_probability: number; }
+interface EPCurveResponse {
+  ep_points: EPPoint[];
+  aal: number; var_90: number; var_95: number; var_99: number;
+  n_simulations: number;
+}
+
+// ─── Fallback hardcodat (folosit dacă backend-ul nu răspunde) ─────────────────
+const FALLBACK: EPCurveResponse = {
+  ep_points: [],
+  aal: 427.58, var_90: 1850.20, var_95: 4258.24, var_99: 5706.67,
+  n_simulations: 10000,
+};
+
+// ─── Helper: construiește path-ul SVG din punctele EP live ───────────────────
+function buildEpPath(
+  epPoints: EPPoint[], maxLoss: number, svgW: number, svgH: number
+): string {
+  if (!epPoints.length || maxLoss <= 0) return '';
+  const nonZero = epPoints.filter(p => p.loss > 0);
+  if (!nonZero.length) return `M 0 0 L 0 ${svgH}`;
+  const startY = (1 - nonZero[0].exceedance_probability) * svgH;
+  let d = `M 0 0 L 0 ${startY.toFixed(1)}`;
+  for (const p of nonZero) {
+    const x = Math.min((p.loss / maxLoss) * svgW, svgW);
+    const y = (1 - p.exceedance_probability) * svgH;
+    d += ` L ${x.toFixed(1)} ${y.toFixed(1)}`;
+  }
+  return d;
+}
+
+// ─── Componentă ──────────────────────────────────────────────────────────────
 const Page3 = () => {
+  const [liveData, setLiveData] = useState<EPCurveResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const body = {
+      hazard_probability: REPORT_PARAMS.hazardProbability,
+      loss_ratio_min:     REPORT_PARAMS.lossRatioMin,
+      loss_ratio_mode:    REPORT_PARAMS.lossRatioMode,
+      loss_ratio_max:     REPORT_PARAMS.lossRatioMax,
+      exposure_value:     REPORT_PARAMS.exposureValue,
+      n_points:           150,
+    };
+
+    fetch(`${API_BASE_URL}/api/analytics/ep-curve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then((json: EPCurveResponse) => setLiveData(json))
+      .catch(() => {/* fallback silențios — se folosesc datele hardcodate */})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const d = liveData ?? FALLBACK;
+
+  // Valori tabel
   const data = {
-    aal:   { val: 427.58,   prob: '-',     period: '—',              label: 'Average Annual Loss (AAL)' },
-    var90: { val: 1850.20,  prob: '10.0%', period: '1 din 10 ani',   label: 'VaR 90% — Eveniment Frecvent' },
-    var95: { val: 4258.24,  prob: '5.0%',  period: '1 din 20 ani',   label: 'VaR 95% — Bază Pricing' },
-    var99: { val: 5706.67,  prob: '1.0%',  period: '1 din 100 ani',  label: 'VaR 99% — SCR Solvency II' },
+    aal:   { val: d.aal,    prob: '-',     period: '—',             label: 'Average Annual Loss (AAL)' },
+    var90: { val: d.var_90, prob: '10.0%', period: '1 din 10 ani',  label: 'VaR 90% — Eveniment Frecvent' },
+    var95: { val: d.var_95, prob: '5.0%',  period: '1 din 20 ani',  label: 'VaR 95% — Bază Pricing' },
+    var99: { val: d.var_99, prob: '1.0%',  period: '1 din 100 ani', label: 'VaR 99% — SCR Solvency II' },
   };
 
-  const pageStyle: React.CSSProperties = {
-    width: '210mm', height: '297mm', boxSizing: 'border-box', padding: '18mm 20mm', margin: "0",
-    backgroundColor: 'white', boxShadow: '0 0 15px rgba(0,0,0,0.3)', position: 'relative',
-    display: 'flex', flexDirection: 'column', overflow: 'hidden',
-    pageBreakAfter: 'always', breakAfter: 'page',
-    color: '#1a202c', fontFamily: 'serif', fontSize: '12px', lineHeight: '1.5',
-  };
+  // SVG EP Curve
+  const svgW = 480; const svgH = 180;
+  const maxLoss = d.ep_points.length
+    ? Math.max(...d.ep_points.map(p => p.loss))
+    : d.var_99 * 1.1;
 
-  const sectionTitle: React.CSSProperties = {
-    fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase' as const,
-    letterSpacing: '0.08em', borderBottom: '1px solid #000',
-    paddingBottom: '6px', marginBottom: '10px', marginTop: '14px',
-  };
+  const epPath = d.ep_points.length
+    ? buildEpPath(d.ep_points, maxLoss, svgW, svgH)
+    : `M 0 2 C 40 8 80 30 130 80 C 180 130 230 155 290 165 C 350 173 400 176 ${svgW} 178`;
 
-  // SVG dimensions for EP curve
-  const svgW = 480;
-  const svgH = 180;
-  // EP curve: X = loss (0→max), Y = probability of exceedance (100%→0%)
-  // Y_svg = (1 - probability) * svgH  => high prob = top, low prob = bottom
-  // Curve: smooth from top-left to bottom-right
-  const epPath = `M 0 2 C 40 8 80 30 130 80 C 180 130 230 155 290 165 C 350 173 400 176 ${svgW} 178`;
+  // Poziția VaR pe axa X a SVG-ului
+  const varXFn = (val: number) =>
+    maxLoss > 0 ? Math.min((val / maxLoss) * svgW, svgW - 4) : 0;
 
-  // VaR points on the curve
-  // VaR 90 = 10% prob => Y = 0.90 * svgH = 162, X ≈ 130
-  // VaR 95 = 5%  prob => Y = 0.95 * svgH = 171, X ≈ 290
-  // VaR 99 = 1%  prob => Y = 0.99 * svgH = 178, X ≈ 430
   const pts = [
-    { cx: 130, cy: 80, label: 'VaR 90', color: '#fbbf24', textX: 140, textY: 74, anchor: 'start' },
-    { cx: 290, cy: 165, label: 'VaR 95', color: '#f87171', textX: 298, textY: 159, anchor: 'start' },
-    { cx: 430, cy: 175, label: 'VaR 99 (Tail Risk)', color: '#991b1b', textX: 320, textY: 148, anchor: 'start' },
+    { cx: varXFn(d.var_90), cy: svgH * 0.90, label: 'VaR 90', color: '#fbbf24' },
+    { cx: varXFn(d.var_95), cy: svgH * 0.95, label: 'VaR 95', color: '#f87171' },
+    { cx: varXFn(d.var_99), cy: svgH * 0.99, label: 'VaR 99', color: '#991b1b' },
   ];
 
-  // Y-axis probability labels (inverted: high prob = top of chart)
   const yLabels = [
-    { y: 0,   label: '100%' },
+    { y: 0,           label: '100%' },
     { y: svgH * 0.5,  label: '50%'  },
     { y: svgH * 0.9,  label: '10%'  },
     { y: svgH * 0.95, label: '5%'   },
     { y: svgH * 0.99, label: '1%'   },
   ];
+
+  const pageStyle: React.CSSProperties = {
+    width: '210mm', height: '297mm', boxSizing: 'border-box', padding: '18mm 20mm', margin: '0',
+    backgroundColor: 'white', boxShadow: '0 0 15px rgba(0,0,0,0.3)', position: 'relative',
+    display: 'flex', flexDirection: 'column', overflow: 'hidden',
+    pageBreakAfter: 'always', breakAfter: 'page',
+    color: '#1a202c', fontFamily: 'serif', fontSize: '12px', lineHeight: '1.5',
+  };
+  const sectionTitle: React.CSSProperties = {
+    fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase' as const,
+    letterSpacing: '0.08em', borderBottom: '1px solid #000',
+    paddingBottom: '6px', marginBottom: '10px', marginTop: '14px',
+  };
 
   return (
     <div style={pageStyle}>
@@ -57,7 +118,11 @@ const Page3 = () => {
         <div style={{ fontWeight: 900, fontSize: '26px', letterSpacing: '-1px' }}>AERISK</div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: '16px', fontWeight: 'bold' }}>RAPORT DE EVALUARE RISC CLIMATIC</div>
-          <div style={{ fontSize: '10px', color: '#94a3b8', marginTop: '2px', letterSpacing: '0.05em' }}>PAGINA 3: MODELARE PROBABILISTICĂ</div>
+          <div style={{ fontSize: '10px', color: '#94a3b8', marginTop: '2px', letterSpacing: '0.05em' }}>
+            PAGINA 3: MODELARE PROBABILISTICĂ
+            {loading && <span style={{ color: '#fbbf24', marginLeft: '8px' }}>● calculând…</span>}
+            {!loading && liveData && <span style={{ color: '#16a34a', marginLeft: '8px' }}>● LIVE</span>}
+          </div>
         </div>
       </div>
 
@@ -66,19 +131,16 @@ const Page3 = () => {
         <h2 style={sectionTitle}>V. Curba de Excedență a Probabilității (EP Curve)</h2>
         <p style={{ fontSize: '11px', color: '#475569', marginBottom: '10px', lineHeight: '1.5' }}>
           Graficul prezintă probabilitatea ca o pierdere financiară să fie <strong>depășită</strong>, obținută prin
-          simulare <strong>Monte Carlo (10.000 iterații)</strong>. Axa Y indică probabilitatea de excedență;
+          simulare <strong>Monte Carlo ({d.n_simulations.toLocaleString('ro-RO')} iterații)</strong>. Axa Y indică probabilitatea de excedență;
           axa X — severitatea pierderii (EUR).
         </p>
 
-        {/* SVG EP CURVE */}
         <div style={{ position: 'relative', paddingLeft: '40px', paddingBottom: '24px' }}>
-          {/* Y axis label */}
           <div style={{ position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%) rotate(-90deg)', fontSize: '9px', color: '#64748b', whiteSpace: 'nowrap', transformOrigin: 'center center' }}>
             Prob. Excedență (%)
           </div>
 
           <svg width="100%" viewBox={`-44 -10 ${svgW + 60} ${svgH + 30}`} style={{ overflow: 'visible' }}>
-            {/* Grid lines */}
             {yLabels.map((yl, i) => (
               <g key={i}>
                 <line x1="0" y1={yl.y} x2={svgW} y2={yl.y} stroke="#f1f5f9" strokeWidth="1" />
@@ -86,26 +148,25 @@ const Page3 = () => {
               </g>
             ))}
 
-            {/* Axes */}
             <line x1="0" y1="0" x2="0" y2={svgH + 2} stroke="#1e293b" strokeWidth="1.5" />
             <line x1="0" y1={svgH} x2={svgW + 2} y2={svgH} stroke="#1e293b" strokeWidth="1.5" />
 
-            {/* EP Curve */}
-            <path d={epPath} fill="none" stroke="#1e293b" strokeWidth="2.5" strokeLinejoin="round" />
+            {epPath && <>
+              <path d={epPath} fill="none" stroke="#1e293b" strokeWidth="2.5" strokeLinejoin="round" />
+              <path d={`${epPath} L ${svgW} ${svgH} L 0 ${svgH} Z`} fill="#f1f5f9" opacity="0.5" />
+            </>}
 
-            {/* Shaded area under curve */}
-            <path d={`${epPath} L ${svgW} ${svgH} L 0 ${svgH} Z`} fill="#f1f5f9" opacity="0.5" />
+            {pts.filter(p => p.cx > 0).map((p, i) => {
+              const textX = Math.min(p.cx + 4, svgW - 40);
+              return (
+                <g key={i}>
+                  <line x1={p.cx} y1={p.cy} x2={p.cx} y2={svgH} stroke={p.color} strokeWidth="1" strokeDasharray="3 2" />
+                  <circle cx={p.cx} cy={p.cy} r="5" fill={p.color} />
+                  <text x={textX} y={p.cy - 6} fontSize="9" fontWeight="bold" fill={p.color}>{p.label}</text>
+                </g>
+              );
+            })}
 
-            {/* VaR dashed lines + points */}
-            {pts.map((p, i) => (
-              <g key={i}>
-                <line x1={p.cx} y1={p.cy} x2={p.cx} y2={svgH} stroke={p.color} strokeWidth="1" strokeDasharray="3 2" />
-                <circle cx={p.cx} cy={p.cy} r="5" fill={p.color} />
-                <text x={p.textX} y={p.textY} fontSize="9" fontWeight="bold" fill={p.color} textAnchor={p.anchor as 'start'}>{p.label}</text>
-              </g>
-            ))}
-
-            {/* X axis label */}
             <text x={svgW / 2} y={svgH + 20} fontSize="9" textAnchor="middle" fill="#64748b">Severitate Pierdere (EUR)</text>
           </svg>
         </div>
@@ -143,7 +204,7 @@ const Page3 = () => {
           <tbody>
             {[
               { ...data.aal,  bg: '#f8fafc', bold: false, red: false },
-              { ...data.var90, bg: 'white',   bold: false, red: false },
+              { ...data.var90, bg: 'white',  bold: false, red: false },
               { ...data.var95, bg: '#f8fafc', bold: false, red: false },
               { ...data.var99, bg: '#fff1f2', bold: true,  red: true  },
             ].map((row, i) => (
@@ -152,7 +213,9 @@ const Page3 = () => {
                 <td style={{ padding: '7px 10px', borderBottom: '1px solid #e2e8f0', textAlign: 'center', color: row.red ? '#b91c1c' : '#64748b' }}>{row.prob}</td>
                 <td style={{ padding: '7px 10px', borderBottom: '1px solid #e2e8f0', textAlign: 'center', color: row.red ? '#b91c1c' : '#64748b' }}>{row.period}</td>
                 <td style={{ padding: '7px 10px', borderBottom: '1px solid #e2e8f0', textAlign: 'right', fontWeight: 'bold', color: row.red ? '#b91c1c' : '#1a202c' }}>
-                  {row.val > 0 ? `€ ${row.val.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}
+                  {row.val > 0
+                    ? `€ ${row.val.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                    : '—'}
                 </td>
               </tr>
             ))}
@@ -160,6 +223,7 @@ const Page3 = () => {
         </table>
         <div style={{ fontSize: '9px', color: '#94a3b8', fontStyle: 'italic', marginTop: '6px' }}>
           * VaR 99% reprezintă cerința de capital Solvency II (SCR) conform Art. 101 al Directivei 2009/138/CE.
+          {liveData && <span> | Sursă: AERISK Engine v1 — Monte Carlo live ({liveData.n_simulations.toLocaleString('ro-RO')} simulări)</span>}
         </div>
       </div>
 

@@ -1,32 +1,46 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { REPORT_PARAMS, API_BASE_URL } from '../config/reportParams';
 
-// ─────────────────────────────────────────────────────────────────
-// BACKEND TODO — datele de mai jos sunt hardcodate pentru demo.
-// În producție, toate valorile trebuie să vină din aerisk-engine:
-//
-// 1. metrics (AUC-ROC, Brier, MAE, F1) → endpoint: GET /metrics/backtesting
-//    Calculat prin sklearn.metrics pe setul de test (1994-2024)
-//
-// 2. historicalComparison → endpoint: GET /backtesting/predicted-vs-actual
-//    Tabel cu perechi (an, pierdere_reala_EUR, pierdere_simulata_EUR)
-//    Sursa reala: date MADRM Moldova + ERA5 frost events
-//
-// 3. qqPoints → endpoint: GET /metrics/qq-plot
-//    Quantile teoretice (distributie Pareto) vs. quantile observate
-//    Calculat cu scipy.stats.probplot în aerisk-engine
-// ─────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Datele istorice (bar chart) și QQ-plot rămân hardcodate — V2 TODO.
+// Metricile ML și damage function vin LIVE din backend.
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface BacktestingResponse {
+  auc_roc: number; brier_score: number;
+  mae_percent: number; f1_score: number;
+  accuracy_percent: number; model_version: string;
+}
+
+const FALLBACK_BT: BacktestingResponse = {
+  auc_roc: 0.87, brier_score: 0.12,
+  mae_percent: 8.7, f1_score: 0.84,
+  accuracy_percent: 91.3, model_version: 'frost_v1.0',
+};
 
 const Page5 = () => {
+  const [btData, setBtData] = useState<BacktestingResponse | null>(null);
+  const [loadingBt, setLoadingBt] = useState(true);
 
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/api/analytics/backtesting`)
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then((json: BacktestingResponse) => setBtData(json))
+      .catch(() => {/* fallback silențios */})
+      .finally(() => setLoadingBt(false));
+  }, []);
+
+  const bt = btData ?? FALLBACK_BT;
+
+  // Metrici ML — date live sau fallback
   const metrics = [
-    { label: 'AUC-ROC',      val: '0.87', desc: 'Capacitate Discriminare',    note: '1.0 = perfect',  color: '#16a34a' },
-    { label: 'BRIER SCORE',  val: '0.12', desc: 'Calibrare Probabilistică',   note: '0.0 = perfect',  color: '#16a34a' },
-    { label: 'MAE',          val: '8.7%', desc: 'Eroare Medie Daună',         note: '<10% = bun',     color: '#16a34a' },
-    { label: 'F1-SCORE',     val: '0.84', desc: 'Acuratețe Clasificare',      note: '1.0 = perfect',  color: '#16a34a' },
+    { label: 'AUC-ROC',      val: bt.auc_roc.toFixed(2),        desc: 'Capacitate Discriminare',  note: '1.0 = perfect',  color: '#16a34a' },
+    { label: 'BRIER SCORE',  val: bt.brier_score.toFixed(2),     desc: 'Calibrare Probabilistică', note: '0.0 = perfect',  color: '#16a34a' },
+    { label: 'MAE',          val: `${bt.mae_percent.toFixed(1)}%`, desc: 'Eroare Medie Daună',      note: '<10% = bun',     color: '#16a34a' },
+    { label: 'F1-SCORE',     val: bt.f1_score.toFixed(2),        desc: 'Acuratețe Clasificare',    note: '1.0 = perfect',  color: '#16a34a' },
   ];
 
-  // Date istorice fixe: (an, dauna_reala %, dauna_simulata %)
-  // Sursa: estimare regională ERA5 + MADRM Moldova [BACKEND TODO: date reale]
+  // Date istorice fixe — V2 TODO: endpoint /backtesting/predicted-vs-actual
   const historical = [
     { an: '1997', real: 0,   sim: 5  },
     { an: '2000', real: 45,  sim: 50 },
@@ -38,20 +52,16 @@ const Page5 = () => {
     { an: '2024', real: 55,  sim: 52 },
   ];
 
-  const barMaxH = 90;
-  const barW = 14;
-  const barGap = 4;
+  const barMaxH = 90; const barW = 14; const barGap = 4;
   const groupW = barW * 2 + barGap + 16;
   const svgW = historical.length * groupW + 20;
 
-  // QQ-Plot points: [theoretical_quantile, sample_quantile]
-  // Arată că distribuția are Heavy-Tail (deviație în zona superioară)
+  // QQ-Plot — V2 TODO: endpoint /metrics/qq-plot
   const qqPoints = [
     [-2.5, -2.4], [-2.0, -1.9], [-1.5, -1.4], [-1.0, -0.9],
     [-0.5, -0.4], [0.0, 0.1],   [0.5, 0.6],   [1.0, 1.1],
     [1.5, 1.7],   [2.0, 2.4],   [2.3, 2.9],   [2.5, 3.4],
   ];
-  // Scale QQ points to SVG coords (180x110)
   const qqSvgW = 180; const qqSvgH = 110;
   const qqMinX = -3; const qqMaxX = 3;
   const qqMinY = -3; const qqMaxY = 3.8;
@@ -65,7 +75,6 @@ const Page5 = () => {
     pageBreakAfter: 'always', breakAfter: 'page',
     color: '#1a202c', fontFamily: 'serif', fontSize: '12px', lineHeight: '1.5',
   };
-
   const sectionTitle: React.CSSProperties = {
     fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase' as const,
     letterSpacing: '0.08em', borderBottom: '1px solid #000',
@@ -80,7 +89,11 @@ const Page5 = () => {
         <div style={{ fontWeight: 900, fontSize: '26px', letterSpacing: '-1px' }}>AERISK</div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: '16px', fontWeight: 'bold' }}>RAPORT DE EVALUARE RISC CLIMATIC</div>
-          <div style={{ fontSize: '10px', color: '#94a3b8', marginTop: '2px', letterSpacing: '0.05em' }}>PAGINA 5: VALIDAREA MODELULUI</div>
+          <div style={{ fontSize: '10px', color: '#94a3b8', marginTop: '2px', letterSpacing: '0.05em' }}>
+            PAGINA 5: VALIDAREA MODELULUI
+            {loadingBt && <span style={{ color: '#fbbf24', marginLeft: '8px' }}>● calculând…</span>}
+            {!loadingBt && btData && <span style={{ color: '#16a34a', marginLeft: '8px' }}>● LIVE ({btData.model_version})</span>}
+          </div>
         </div>
       </div>
 
@@ -111,7 +124,6 @@ const Page5 = () => {
           {/* Bar chart */}
           <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '4px', padding: '10px 10px 6px 10px' }}>
             <svg width="100%" viewBox={`0 0 ${svgW + 10} ${barMaxH + 30}`} style={{ overflow: 'visible' }}>
-              {/* Grid lines */}
               {[0, 25, 50, 75, 100].map((v) => {
                 const y = barMaxH - (v / 100) * barMaxH;
                 return (
@@ -121,7 +133,6 @@ const Page5 = () => {
                   </g>
                 );
               })}
-              {/* Bars */}
               {historical.map((d, i) => {
                 const x = i * groupW + 10;
                 const hReal = (d.real / 100) * barMaxH;
@@ -134,10 +145,8 @@ const Page5 = () => {
                   </g>
                 );
               })}
-              {/* Baseline */}
               <line x1="0" y1={barMaxH} x2={svgW + 10} y2={barMaxH} stroke="#1e293b" strokeWidth="1" />
             </svg>
-            {/* Legend */}
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '2px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '8px', color: '#64748b' }}>
                 <div style={{ width: '10px', height: '8px', backgroundColor: '#cbd5e1', borderRadius: '1px' }} />
@@ -150,11 +159,11 @@ const Page5 = () => {
             </div>
           </div>
 
-          {/* Accuracy note */}
+          {/* Accuracy note — live */}
           <div style={{ width: '110px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '4px', padding: '8px', textAlign: 'center' }}>
               <div style={{ fontSize: '8px', color: '#166534', fontWeight: 'bold', marginBottom: '2px' }}>ACURATEȚE MEDIE</div>
-              <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#16a34a' }}>91.3%</div>
+              <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#16a34a' }}>{bt.accuracy_percent.toFixed(1)}%</div>
               <div style={{ fontSize: '7px', color: '#4ade80' }}>pe 30 ani date</div>
             </div>
             <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '4px', padding: '8px', fontSize: '8px', color: '#475569', lineHeight: '1.4' }}>
@@ -169,35 +178,28 @@ const Page5 = () => {
         <h2 style={sectionTitle}>XIII. Calibrarea Distribuției — QQ-Plot (Heavy-Tail Test)</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '12px', alignItems: 'start' }}>
 
-          {/* QQ Plot SVG */}
           <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '4px', padding: '8px' }}>
             <div style={{ fontSize: '8px', color: '#64748b', marginBottom: '4px', fontWeight: 'bold', letterSpacing: '0.05em' }}>QQ-PLOT — DISTRIBUȚIE PARETO</div>
             <svg width={qqSvgW + 20} height={qqSvgH + 20} viewBox={`-20 -5 ${qqSvgW + 25} ${qqSvgH + 20}`}>
-              {/* Axes */}
               <line x1="0" y1="0" x2="0" y2={qqSvgH} stroke="#1e293b" strokeWidth="1" />
               <line x1="0" y1={qqSvgH} x2={qqSvgW} y2={qqSvgH} stroke="#1e293b" strokeWidth="1" />
-              {/* Reference line (perfect fit) */}
               <line
                 x1={toSvgX(qqMinX)} y1={toSvgY(qqMinX)}
                 x2={toSvgX(qqMaxX)} y2={toSvgY(qqMaxX)}
                 stroke="#94a3b8" strokeWidth="1" strokeDasharray="3 2"
               />
-              {/* Heavy-tail region highlight */}
               <rect x={toSvgX(1.8)} y={0} width={qqSvgW - toSvgX(1.8)} height={qqSvgH} fill="#fff1f2" opacity="0.5" />
               <text x={toSvgX(2.0)} y={12} fontSize="7" fill="#ef4444">Heavy</text>
               <text x={toSvgX(2.0)} y={20} fontSize="7" fill="#ef4444">Tail ↗</text>
-              {/* Data points */}
               {qqPoints.map(([tx, sy], i) => (
                 <circle key={i} cx={toSvgX(tx)} cy={toSvgY(sy)} r="2.5"
                   fill={tx > 1.8 ? '#ef4444' : '#1e293b'} opacity="0.85" />
               ))}
-              {/* Axis labels */}
               <text x={qqSvgW / 2} y={qqSvgH + 14} fontSize="7" textAnchor="middle" fill="#64748b">Cuantile Teoretice</text>
               <text x="-14" y={qqSvgH / 2} fontSize="7" fill="#64748b" transform={`rotate(-90, -14, ${qqSvgH / 2})`} textAnchor="middle">Cuantile Observate</text>
             </svg>
           </div>
 
-          {/* Explanation */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '7px', fontSize: '10px' }}>
             <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '4px', padding: '8px' }}>
               <div style={{ fontWeight: 'bold', color: '#1e293b', marginBottom: '3px', fontSize: '9px' }}>📐 Ce arată QQ-Plot-ul</div>
