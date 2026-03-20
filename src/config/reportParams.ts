@@ -102,6 +102,10 @@ export const REPORT_CONTEXT = {
   isLiveData: _url.precomputed !== null,
 };
 
-/** URL-ul backend-ului — configurabil prin variabilă de mediu Vite */
+/**
+ * URL-ul backend-ului.
+ * - În browser: folosim path relativ '' → Vite proxy '/api' → aerisk-backend:8000
+ * - Override explicit via VITE_API_URL dacă e necesar (ex: staging/prod)
+ */
 export const API_BASE_URL: string =
-  (import.meta as any).env?.VITE_API_URL ?? 'http://localhost:8000';
+  (import.meta as any).env?.VITE_API_URL ?? '';
