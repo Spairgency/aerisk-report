@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { REPORT_PARAMS, API_BASE_URL } from '../config/reportParams';
+import { REPORT_PARAMS, API_BASE_URL, PRECOMPUTED_METRICS } from '../config/reportParams';
 
 // ─── Tipuri ──────────────────────────────────────────────────────────────────
 interface EPPoint { loss: number; exceedance_probability: number; }
@@ -61,12 +61,16 @@ const Page3 = () => {
 
   const d = liveData ?? FALLBACK;
 
-  // Valori tabel
+  // Metrici pentru tabel: prioritate PRECOMPUTED (din dashboard) > fetch live > fallback
+  const metrics = PRECOMPUTED_METRICS ?? {
+    aal: d.aal, var_90: d.var_90, var_95: d.var_95, var_99: d.var_99,
+  };
+
   const data = {
-    aal:   { val: d.aal,    prob: '-',     period: '—',             label: 'Average Annual Loss (AAL)' },
-    var90: { val: d.var_90, prob: '10.0%', period: '1 din 10 ani',  label: 'VaR 90% — Eveniment Frecvent' },
-    var95: { val: d.var_95, prob: '5.0%',  period: '1 din 20 ani',  label: 'VaR 95% — Bază Pricing' },
-    var99: { val: d.var_99, prob: '1.0%',  period: '1 din 100 ani', label: 'VaR 99% — SCR Solvency II' },
+    aal:   { val: metrics.aal,    prob: '-',     period: '—',             label: 'Average Annual Loss (AAL)' },
+    var90: { val: metrics.var_90, prob: '10.0%', period: '1 din 10 ani',  label: 'VaR 90% — Eveniment Frecvent' },
+    var95: { val: metrics.var_95, prob: '5.0%',  period: '1 din 20 ani',  label: 'VaR 95% — Bază Pricing' },
+    var99: { val: metrics.var_99, prob: '1.0%',  period: '1 din 100 ani', label: 'VaR 99% — SCR Solvency II' },
   };
 
   // SVG EP Curve
