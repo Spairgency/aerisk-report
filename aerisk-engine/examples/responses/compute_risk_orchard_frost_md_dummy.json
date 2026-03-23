@@ -1,0 +1,30 @@
+{
+    "summary": {
+        "risk_score": 15.0,
+        "risk_level": "MEDIUM"
+    },
+    "hazard": {
+        "overall_probability": 0.09
+    },
+    "vulnerability": {
+        "loss_ratio_min": 0.1,
+        "loss_ratio_mode": 0.3,
+        "loss_ratio_max": 0.6
+    },
+    "monte_carlo": {
+        "total_insured_value": 10000.0,
+        "aal": 1502.1,
+        "var_90": 2115.0,
+        "var_95": 2115.0,
+        "var_99": 2362.1,
+        "pml_90": 2115.0,
+        "pml_95": 2115.0,
+        "pml_99": 2362.1,
+        "loss_distribution_sample": null
+    },
+    "metadata": {
+        "engine_version": "1.0.0",
+        "model_version": "v1",
+        "timestamp": "2025-12-19T11:38:26.003256Z"
+    }
+}

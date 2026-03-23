@@ -1,0 +1,27 @@
+{
+    "name": "orchard_frost_md",
+    "description": "Apple orchard – moderate frost risk during flowering",
+    "request": {
+        "location": {
+            "lat": 47.2,
+            "lon": 28.5,
+            "altitude_m": 120
+        },
+        "asset": {
+            "crop_type": "APPLE",
+            "phenological_stage": "FLOWERING",
+            "area_ha": 5
+        },
+        "financial": {
+            "total_insured_value": 10000,
+            "currency": "EUR"
+        },
+        "context": {
+            "target_date": "2025-03-28",
+            "season": "SPRING"
+        }
+    },
+    "expected": {
+        "risk_level": "LOW"
+    }
+}

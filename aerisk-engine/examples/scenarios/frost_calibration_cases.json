@@ -1,0 +1,93 @@
+{
+    "description": "Canonical frost calibration scenarios for AERISK – deterministic baseline",
+    "rules_version": "4A-deterministic-v1",
+    "scenarios": [
+        {
+            "id": "FROST_01_MILD_DORMANT",
+            "request": {
+                "location": {
+                    "lat": 46.8,
+                    "lon": 28.6
+                },
+                "asset": {
+                    "type": "agriculture",
+                    "crop": "apple",
+                    "area_ha": 10.0,
+                    "phenological_stage": "dormant"
+                },
+                "financial": {
+                    "total_insured_value": 10000.0,
+                    "currency": "EUR"
+                },
+                "context": {
+                    "country": "MD",
+                    "use_case": "frost_risk",
+                    "target_date": "2025-03-20"
+                }
+            },
+            "expected": {
+                "hazard_probability": 0.10,
+                "loss_ratio": 0.05,
+                "risk_level": "LOW"
+            }
+        },
+        {
+            "id": "FROST_02_MILD_FLOWERING",
+            "request": {
+                "location": {
+                    "lat": 46.8,
+                    "lon": 28.6
+                },
+                "asset": {
+                    "type": "agriculture",
+                    "crop": "apple",
+                    "area_ha": 10.0,
+                    "phenological_stage": "flowering"
+                },
+                "financial": {
+                    "total_insured_value": 10000.0,
+                    "currency": "EUR"
+                },
+                "context": {
+                    "country": "MD",
+                    "use_case": "frost_risk",
+                    "target_date": "2025-03-25"
+                }
+            },
+            "expected": {
+                "hazard_probability": 0.15,
+                "loss_ratio": 0.20,
+                "risk_level": "MEDIUM"
+            }
+        },
+        {
+            "id": "FROST_03_BASELINE_MD",
+            "request": {
+                "location": {
+                    "lat": 47.0,
+                    "lon": 28.8
+                },
+                "asset": {
+                    "type": "agriculture",
+                    "crop": "apple",
+                    "area_ha": 10.0,
+                    "phenological_stage": "flowering"
+                },
+                "financial": {
+                    "total_insured_value": 10000.0,
+                    "currency": "EUR"
+                },
+                "context": {
+                    "country": "MD",
+                    "use_case": "frost_risk",
+                    "target_date": "2025-04-01"
+                }
+            },
+            "expected": {
+                "hazard_probability": 0.30,
+                "loss_ratio": 0.35,
+                "risk_level": "MEDIUM"
+            }
+        }
+    ]
+}
