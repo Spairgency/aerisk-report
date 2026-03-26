@@ -1,13 +1,16 @@
 import React from 'react';
+import { REPORT_CONTEXT } from '../config/reportParams';
 
 const Page4 = () => {
+  const ctx = REPORT_CONTEXT;
+
   const data = {
-    locatie: 'Ștefan Vodă, MD',
-    coordonate: '46.51° N, 29.66° E',
-    altitudine: '165 m',
-    panta: '4–6°',
-    expozitie: 'Sud-Est',
-    distantaVale: '320 m',
+    locatie:      `${ctx.locality ?? ctx.region ?? 'Moldova'}, MD`,
+    coordonate:   `${(ctx.lat ?? 46.51).toFixed(2)}° N, ${(ctx.lon ?? 29.66).toFixed(2)}° E`,
+    altitudine:   '165 m',   // estimat regional — v2: Copernicus DEM
+    panta:        '4–6°',    // estimat regional — v2: Copernicus DEM
+    expozitie:    'Sud-Est', // estimat regional — v2: Copernicus DEM
+    distantaVale: '320 m',   // estimat regional — v2: Copernicus DEM
   };
 
   const pageStyle: React.CSSProperties = {
@@ -134,10 +137,10 @@ const Page4 = () => {
         {/* Stats row */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
           {[
-            { label: 'Altitudine', val: data.altitudine, note: 'medie livadă' },
-            { label: 'Pantă', val: data.panta, note: 'gradient teren' },
-            { label: 'Expozitie', val: data.expozitie, note: 'orientare versant' },
-            { label: 'Dist. Vale', val: data.distantaVale, note: 'față de fond vale' },
+            { label: 'Coordonate GPS', val: data.coordonate, note: 'locație exactă activ' },
+            { label: 'Pantă',          val: data.panta,       note: 'gradient teren (est.)' },
+            { label: 'Expozitie',      val: data.expozitie,   note: 'orientare versant (est.)' },
+            { label: 'Altitudine',     val: data.altitudine,  note: 'medie livadă (est.)' },
           ].map((s, i) => (
             <div key={i} style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '4px', padding: '6px 8px', textAlign: 'center' }}>
               <div style={{ fontSize: '8px', color: '#94a3b8', letterSpacing: '0.05em', marginBottom: '2px' }}>{s.label.toUpperCase()}</div>
@@ -169,7 +172,7 @@ const Page4 = () => {
               {/* Livada */}
               <rect x="80" y="50" width="45" height="30" rx="3" fill="#fef3c7" stroke="#d97706" strokeWidth="1.2" />
               <text x="102" y="65" fontSize="8" fontWeight="bold" fill="#92400e" textAnchor="middle">LIVADĂ</text>
-              <text x="102" y="75" fontSize="7" fill="#92400e" textAnchor="middle">Ștefan Vodă</text>
+              <text x="102" y="75" fontSize="7" fill="#92400e" textAnchor="middle">{ctx.locality ?? ctx.region ?? ''}</text>
               {/* North arrow */}
               <text x="185" y="15" fontSize="10" fill="#475569" fontWeight="bold">N↑</text>
               {/* Labels */}

@@ -1,4 +1,5 @@
 import React from 'react';
+import { REPORT_CONTEXT, PRECOMPUTED_METRICS } from '../config/reportParams';
 
 // ─────────────────────────────────────────────────────────────────
 // BACKEND TODO — aerisk-engine + aerisk-backend
@@ -14,19 +15,44 @@ import React from 'react';
 // ─────────────────────────────────────────────────────────────────
 
 const Page7 = () => {
+  const ctx = REPORT_CONTEXT;
+  const currency    = ctx.currency ?? 'MDL';
+  const currencyLbl = currency === 'MDL' ? 'MDL' : currency === 'EUR' ? 'EUR' : 'USD';
+  const exposure    = ctx.exposureValue ?? 10000;
+  const areaHa      = ctx.areaHa ?? 1;
 
-  // Date înainte/după protecție
-  const varBefore = { var90: 1850, var95: 4258, var99: 5707 };
-  const varAfter  = { var90: 462,  var95: 1064, var99: 1426 }; // -75% aspersiune
+  const fmtVal = (v: number) => `${v.toLocaleString('ro-RO')} ${currencyLbl}`;
+
+  // VaR-uri: prioritate PRECOMPUTED (din dashboard) → fallback estimat din exposure
+  const var99Base = PRECOMPUTED_METRICS?.var_99 ?? Math.round(exposure * 0.57);
+  const var95Base = PRECOMPUTED_METRICS?.var_95 ?? Math.round(exposure * 0.43);
+  const var90Base = PRECOMPUTED_METRICS?.var_90 ?? Math.round(exposure * 0.39);
+
+  const varBefore = { var90: var90Base, var95: var95Base, var99: var99Base };
+  const varAfter  = {
+    var90: Math.round(var90Base * 0.25),
+    var95: Math.round(var95Base * 0.25),
+    var99: Math.round(var99Base * 0.25),
+  };
+
+  // Factor conversie monetară față de EUR (baza costurilor din literatura tehnică)
+  // MDL ≈ ×20 | USD ≈ ×1.08 | EUR ×1 (identitate)
+  const costMultiplier = currency === 'MDL' ? 20 : currency === 'USD' ? 1.08 : 1;
+
+  // Costuri măsuri — scalate după suprafață și monedă
+  const costAspersiune = Math.round(3500 * areaHa * costMultiplier);  // 3 500 EUR/Ha → 70 000 MDL/Ha
+  const costIoT        = Math.round(450 * costMultiplier);            // 450 EUR/senzor → 9 000 MDL/senzor
+  const aalEstimat     = PRECOMPUTED_METRICS?.aal ?? Math.round(exposure * 0.15);
+  const roiAspersiune  = Math.round(aalEstimat * 10);
 
   const measures = [
     {
       icon: '💧',
       name: 'Sistem de Aspersiune Antifrost',
       desc: 'Protecție prin eliberarea căldurii latente de fuziune (0°C). Apa pulverizată formează un strat de gheață care menține mugurii la exact 0°C.',
-      cost: '€ 3.500 / Ha',
+      cost: `${costAspersiune.toLocaleString('ro-RO')} ${currencyLbl} / ${areaHa} Ha`,
       aalReduce: '-75%',
-      var99After: '€ 1.426',
+      var99After: fmtVal(varAfter.var99),
       eficienta: 75,
       color: '#2563eb',
     },
@@ -34,9 +60,9 @@ const Page7 = () => {
       icon: '📡',
       name: 'Senzori IoT (Monitorizare Real-Time)',
       desc: 'Alerte automate la -0.5°C permit intervenție manuală (fumigație, biostimulatori) cu 45–90 minute înainte de atingerea pragului LT50.',
-      cost: '€ 450 / senzor',
+      cost: `${costIoT.toLocaleString('ro-RO')} ${currencyLbl} / senzor`,
       aalReduce: '-15%',
-      var99After: '€ 4.851',
+      var99After: fmtVal(Math.round(var99Base * 0.85)),
       eficienta: 15,
       color: '#7c3aed',
     },
@@ -46,7 +72,7 @@ const Page7 = () => {
       desc: 'Transferul riscului rezidual. Plata automată la depășirea pragului de temperatură — fără inspecție de daune, lichiditate imediată.',
       cost: 'Primă variabilă',
       aalReduce: 'Transfer',
-      var99After: '€ 0 (acoperit)',
+      var99After: `0 ${currencyLbl} (acoperit)`,
       eficienta: 100,
       color: '#059669',
     },
@@ -154,7 +180,7 @@ const Page7 = () => {
                 return (
                   <g key={pct}>
                     <line x1="0" y1={y} x2={varLabels.length * groupW + 20} y2={y} stroke="#e2e8f0" strokeWidth="0.5" />
-                    <text x="-2" y={y + 3} fontSize="7" textAnchor="end" fill="#94a3b8">€{(eurVal/1000).toFixed(1)}k</text>
+                    <text x="-2" y={y + 3} fontSize="7" textAnchor="end" fill="#94a3b8">{(eurVal/1000).toFixed(1)}k {currencyLbl}</text>
                   </g>
                 );
               })}
@@ -188,12 +214,12 @@ const Page7 = () => {
           <div style={{ width: '95px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '4px', padding: '8px', textAlign: 'center' }}>
               <div style={{ fontSize: '8px', color: '#166534', fontWeight: 'bold', marginBottom: '2px' }}>SCR REDUS</div>
-              <div style={{ fontSize: '9px', color: '#64748b', textDecoration: 'line-through' }}>€ 5.707</div>
-              <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#16a34a' }}>€ 1.426</div>
+              <div style={{ fontSize: '9px', color: '#64748b', textDecoration: 'line-through' }}>{fmtVal(varBefore.var99)}</div>
+              <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#16a34a' }}>{fmtVal(varAfter.var99)}</div>
               <div style={{ fontSize: '8px', color: '#16a34a', fontWeight: 'bold' }}>−75%</div>
             </div>
             <div style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '4px', padding: '8px', fontSize: '8px', color: '#475569', lineHeight: '1.4' }}>
-              ROI aspersiune: investiție €35.000 vs. risc evitat €4.281 / an (AAL × 10 ani).
+              ROI aspersiune: investiție {fmtVal(costAspersiune)} vs. risc evitat {fmtVal(roiAspersiune / 10)} / an (AAL × 10 ani).
             </div>
           </div>
         </div>

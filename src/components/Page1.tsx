@@ -80,6 +80,32 @@ function genDate(): string {
   }) + ' UTC';
 }
 
+/**
+ * calcRiskScore — Scor de risc unificat 0–100
+ *
+ * Logică: fiecare nivel de risc definește un interval [floor, ceiling].
+ * Probabilitatea hazardului determină poziția în acel interval.
+ *
+ *   LOW    → [ 10,  40]   hazard rar, impact limitat
+ *   MEDIUM → [ 40,  70]   hazard moderat
+ *   HIGH   → [ 70, 100]   hazard frecvent, impact sever
+ *
+ * Exemple:
+ *   42% prob + HIGH   → 70 + round(0.42 × 30) = 83 / 100  ✅ RIDICAT
+ *   20% prob + MEDIUM → 40 + round(0.20 × 30) = 46 / 100  ✅ MEDIU
+ *    5% prob + LOW    → 10 + round(0.05 × 30) = 12 / 100  ✅ SCĂZUT
+ *   80% prob + HIGH   → 70 + round(0.80 × 30) = 94 / 100  ✅ RIDICAT
+ */
+function calcRiskScore(hazardProbability: number, riskLevel: string): number {
+  const FLOOR:   Record<string, number> = { HIGH: 70, MEDIUM: 40, LOW: 10 };
+  const CEILING: Record<string, number> = { HIGH: 100, MEDIUM: 70, LOW: 40 };
+  const lvl     = (riskLevel ?? 'MEDIUM').toUpperCase();
+  const floor   = FLOOR[lvl]   ?? 40;
+  const ceiling = CEILING[lvl] ?? 70;
+  const p       = Math.min(1, Math.max(0, hazardProbability));
+  return Math.round(floor + p * (ceiling - floor));
+}
+
 // ─── Componentă ──────────────────────────────────────────────────────────────
 const Page1 = () => {
   const ctx = REPORT_CONTEXT;
@@ -90,8 +116,10 @@ const Page1 = () => {
   const riskBg       = RISK_BG[riskLevelUp]     ?? '#fff7ed';
   const riskEmoji    = RISK_EMOJI[riskLevelUp]  ?? '🟠';
   const riskLevelRo  = riskLevelUp === 'HIGH' ? 'RIDICAT' : riskLevelUp === 'LOW' ? 'SCĂZUT' : 'MEDIU';
-  const scorePercent = Math.min(100, Math.round((ctx.riskScore / 1000) * 100));
-  const hazardProb   = Math.round((ctx.hazardProbability ?? 0.20) * 100);
+  const hazardProb01 = ctx.hazardProbability ?? 0.20;
+  const hazardProb   = Math.round(hazardProb01 * 100);
+  // Scor 0–100 calculat dinamic — consistent cu riskLevel + hazardProbability
+  const riskScore100 = calcRiskScore(hazardProb01, riskLevelUp);
   const ref          = genRef();
   const dateGen      = genDate();
 
@@ -213,10 +241,10 @@ const Page1 = () => {
                 {riskEmoji} {riskLevelRo}
               </div>
               <div style={{ fontSize: '9px', color: '#64748b', marginBottom: '3px' }}>
-                Scor: <strong style={{ color: '#1a202c' }}>{ctx.riskScore} / 1000</strong>
+                Scor: <strong style={{ color: '#1a202c' }}>{riskScore100} / 100</strong>
               </div>
               <div style={{ width: '100%', height: '5px', backgroundColor: `${riskColor}22`, borderRadius: '99px', overflow: 'hidden' }}>
-                <div style={{ width: `${scorePercent}%`, height: '100%', backgroundColor: riskColor, borderRadius: '99px' }} />
+                <div style={{ width: `${riskScore100}%`, height: '100%', backgroundColor: riskColor, borderRadius: '99px' }} />
               </div>
             </div>
 

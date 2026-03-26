@@ -1,4 +1,5 @@
 import React from 'react';
+import { REPORT_CONTEXT } from '../config/reportParams';
 
 // ─────────────────────────────────────────────────────────────────
 // BACKEND TODO — aerisk-engine + aerisk-backend
@@ -22,8 +23,15 @@ import React from 'react';
 // ─────────────────────────────────────────────────────────────────
 
 const Page6 = () => {
+  const ctx = REPORT_CONTEXT;
 
-  const valoareAsigurata = 10000;
+  const exposure     = ctx.exposureValue ?? 10000;
+  const currency     = ctx.currency ?? 'MDL';
+  const currencyLbl  = currency === 'MDL' ? 'MDL' : currency === 'EUR' ? 'EUR' : 'USD';
+
+  // Scenariile se calculează ca % din valoarea asigurată
+  const pierdereA = Math.round(exposure * 1.00);   // 100%
+  const pierdereB = Math.round(exposure * 0.65);   // 65%
 
   const scenarios = [
     {
@@ -38,7 +46,7 @@ const Page6 = () => {
       ],
       impact: 'Necroză totală a organelor de reproducere. Compromitere ireversibilă a recoltei.',
       dauna: 100,
-      pierdere: 10000,
+      pierdere: pierdereA,
       color: '#b91c1c',
       bg: '#fff1f2',
     },
@@ -54,29 +62,40 @@ const Page6 = () => {
       ],
       impact: 'Avortarea fructelor proaspăt legate. Pierdere parțială irecuperabilă.',
       dauna: 65,
-      pierdere: 6500,
+      pierdere: pierdereB,
       color: '#c2410c',
       bg: '#fff7ed',
     },
   ];
 
-  // CFaR: componente cash-flow pe an normal vs. post-eveniment
+  // CFaR: componente cash-flow — venit din valoarea asigurată, costuri fixe estimate
+  const salarii  = Math.round(exposure * 0.24);
+  const motorina = Math.round(exposure * 0.08);
+  const rate     = Math.round(exposure * 0.12);
+  const inputuri = Math.round(exposure * 0.15);
+
   const cfComponents = [
-    { label: 'Venit Recoltă',    normal: 10000, scenA: 0,     scenB: 3500  },
-    { label: 'Salarii personal', normal: -2400, scenA: -2400, scenB: -2400 },
-    { label: 'Motorină / utilaje',normal: -800, scenA: -800,  scenB: -800  },
-    { label: 'Rate bancă',        normal: -1200, scenA: -1200, scenB: -1200 },
-    { label: 'Inputuri agricole', normal: -1500, scenA: -1500, scenB: -1500 },
+    { label: 'Venit Recoltă',     normal: exposure,   scenA: 0,                        scenB: Math.round(exposure * 0.35) },
+    { label: 'Salarii personal',  normal: -salarii,   scenA: -salarii,                  scenB: -salarii  },
+    { label: 'Motorină / utilaje',normal: -motorina,  scenA: -motorina,                 scenB: -motorina },
+    { label: 'Rate bancă',        normal: -rate,      scenA: -rate,                     scenB: -rate     },
+    { label: 'Inputuri agricole', normal: -inputuri,  scenA: -inputuri,                 scenB: -inputuri },
   ];
   const totalNormal = cfComponents.reduce((s, r) => s + r.normal, 0);
   const totalA      = cfComponents.reduce((s, r) => s + r.scenA, 0);
   const totalB      = cfComponents.reduce((s, r) => s + r.scenB, 0);
 
-  // Solvability test: 2 ani consecutivi de îngheț (Scenariu B)
+  // Solvability: rezerve estimate = 80% din valoarea asigurată, deficit = pierdere netă Scenariu A
+  const rezerveInitiale = Math.round(exposure * 0.80);
+  const deficitAnual    = Math.abs(totalA);
+  const sold1           = rezerveInitiale - deficitAnual;
+  const sold2           = sold1 - deficitAnual;
+  const deficit2        = Math.abs(Math.min(sold2, 0));
+
   const solvability = [
-    { an: 'Anul 0 (bază)',  rezerve: 8000,  castig: 4100,  pierdere: 0,    sold: 8000  },
-    { an: 'Anul 1 (frost)', rezerve: 8000,  castig: 0,     pierdere: 5900, sold: 2100  },
-    { an: 'Anul 2 (frost)', rezerve: 2100,  castig: 0,     pierdere: 5900, sold: -3800 },
+    { an: 'Anul 0 (bază)',  rezerve: rezerveInitiale, pierdere: 0,           sold: rezerveInitiale },
+    { an: 'Anul 1 (frost)', rezerve: rezerveInitiale, pierdere: deficitAnual, sold: sold1          },
+    { an: 'Anul 2 (frost)', rezerve: Math.max(sold1, 0), pierdere: deficitAnual, sold: sold2       },
   ];
 
   const pageStyle: React.CSSProperties = {
@@ -93,8 +112,9 @@ const Page6 = () => {
     paddingBottom: '6px', marginBottom: '10px', marginTop: '14px',
   };
 
-  const fmtEur = (v: number) =>
-    (v >= 0 ? '+ ' : '− ') + '€ ' + Math.abs(v).toLocaleString('ro-RO');
+  const fmt = (v: number) =>
+    (v >= 0 ? '+ ' : '− ') + Math.abs(v).toLocaleString('ro-RO') + ' ' + currencyLbl;
+  const fmtPos = (v: number) => v.toLocaleString('ro-RO') + ' ' + currencyLbl;
 
   return (
     <div style={pageStyle}>
@@ -136,7 +156,7 @@ const Page6 = () => {
                     <div style={{ width: `${s.dauna}%`, height: '100%', backgroundColor: s.color, borderRadius: '999px' }} />
                   </div>
                   <span style={{ fontSize: '10px', fontWeight: 'bold', color: s.color, whiteSpace: 'nowrap' }}>
-                    {s.dauna}% — € {s.pierdere.toLocaleString('ro-RO')}
+                    {s.dauna}% — {s.pierdere.toLocaleString('ro-RO')} {currencyLbl}
                   </span>
                 </div>
               </div>
@@ -162,22 +182,22 @@ const Page6 = () => {
               <tr key={i} style={{ backgroundColor: i % 2 === 0 ? '#f8fafc' : 'white' }}>
                 <td style={{ padding: '4px 8px', borderBottom: '1px solid #f1f5f9', color: '#475569' }}>{row.label}</td>
                 <td style={{ padding: '4px 8px', borderBottom: '1px solid #f1f5f9', textAlign: 'right', fontWeight: row.normal > 0 ? 'bold' : 'normal', color: row.normal > 0 ? '#16a34a' : '#475569' }}>
-                  {fmtEur(row.normal)}
+                  {fmt(row.normal)}
                 </td>
                 <td style={{ padding: '4px 8px', borderBottom: '1px solid #f1f5f9', textAlign: 'right', backgroundColor: '#fff1f2', fontWeight: row.scenA > 0 ? 'bold' : 'normal', color: row.scenA > 0 ? '#16a34a' : row.scenA < 0 ? '#b91c1c' : '#94a3b8' }}>
-                  {row.scenA === 0 ? '€ 0' : fmtEur(row.scenA)}
+                  {row.scenA === 0 ? `0 ${currencyLbl}` : fmt(row.scenA)}
                 </td>
                 <td style={{ padding: '4px 8px', borderBottom: '1px solid #f1f5f9', textAlign: 'right', backgroundColor: '#fff7ed', fontWeight: row.scenB > 0 ? 'bold' : 'normal', color: row.scenB > 0 ? '#16a34a' : '#c2410c' }}>
-                  {fmtEur(row.scenB)}
+                  {fmt(row.scenB)}
                 </td>
               </tr>
             ))}
             {/* TOTAL row */}
             <tr style={{ backgroundColor: '#1e293b', color: 'white', fontWeight: 'bold' }}>
               <td style={{ padding: '5px 8px' }}>SOLD NET</td>
-              <td style={{ padding: '5px 8px', textAlign: 'right', color: '#4ade80' }}>{fmtEur(totalNormal)}</td>
-              <td style={{ padding: '5px 8px', textAlign: 'right', color: '#fca5a5' }}>{fmtEur(totalA)}</td>
-              <td style={{ padding: '5px 8px', textAlign: 'right', color: '#fdba74' }}>{fmtEur(totalB)}</td>
+              <td style={{ padding: '5px 8px', textAlign: 'right', color: '#4ade80' }}>{fmt(totalNormal)}</td>
+              <td style={{ padding: '5px 8px', textAlign: 'right', color: '#fca5a5' }}>{fmt(totalA)}</td>
+              <td style={{ padding: '5px 8px', textAlign: 'right', color: '#fdba74' }}>{fmt(totalB)}</td>
             </tr>
           </tbody>
         </table>
@@ -202,12 +222,12 @@ const Page6 = () => {
                 return (
                   <tr key={i} style={{ backgroundColor: insolvent ? '#fff1f2' : i % 2 === 0 ? '#f8fafc' : 'white' }}>
                     <td style={{ padding: '5px 8px', borderBottom: '1px solid #f1f5f9', fontWeight: 'bold', color: insolvent ? '#b91c1c' : '#1a202c' }}>{row.an}</td>
-                    <td style={{ padding: '5px 8px', borderBottom: '1px solid #f1f5f9', textAlign: 'right', color: '#475569' }}>€ {row.rezerve.toLocaleString('ro-RO')}</td>
+                    <td style={{ padding: '5px 8px', borderBottom: '1px solid #f1f5f9', textAlign: 'right', color: '#475569' }}>{fmtPos(row.rezerve)}</td>
                     <td style={{ padding: '5px 8px', borderBottom: '1px solid #f1f5f9', textAlign: 'right', color: row.pierdere > 0 ? '#b91c1c' : '#16a34a' }}>
-                      {row.pierdere > 0 ? `− € ${row.pierdere.toLocaleString('ro-RO')}` : '—'}
+                      {row.pierdere > 0 ? `− ${row.pierdere.toLocaleString('ro-RO')} ${currencyLbl}` : '—'}
                     </td>
                     <td style={{ padding: '5px 8px', borderBottom: '1px solid #f1f5f9', textAlign: 'right', fontWeight: 'bold', color: insolvent ? '#b91c1c' : '#16a34a' }}>
-                      {insolvent ? `⚠ − € ${Math.abs(row.sold).toLocaleString('ro-RO')}` : `€ ${row.sold.toLocaleString('ro-RO')}`}
+                      {insolvent ? `⚠ − ${Math.abs(row.sold).toLocaleString('ro-RO')} ${currencyLbl}` : `${row.sold.toLocaleString('ro-RO')} ${currencyLbl}`}
                     </td>
                   </tr>
                 );
@@ -219,7 +239,7 @@ const Page6 = () => {
           <div style={{ width: '100px', backgroundColor: '#fff1f2', border: '1px solid #fecaca', borderRadius: '4px', padding: '8px', textAlign: 'center' }}>
             <div style={{ fontSize: '18px', marginBottom: '4px' }}>⚠️</div>
             <div style={{ fontSize: '8px', fontWeight: 'bold', color: '#b91c1c', marginBottom: '4px' }}>INSOLVENȚĂ AN 2</div>
-            <div style={{ fontSize: '8px', color: '#7f1d1d', lineHeight: '1.4' }}>Deficit de € 3.800 fără rezerve sau asigurare</div>
+            <div style={{ fontSize: '8px', color: '#7f1d1d', lineHeight: '1.4' }}>Deficit de {deficit2.toLocaleString('ro-RO')} {currencyLbl} fără rezerve sau asigurare</div>
           </div>
         </div>
       </div>

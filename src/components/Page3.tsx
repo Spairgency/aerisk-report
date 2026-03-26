@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { REPORT_PARAMS, API_BASE_URL, PRECOMPUTED_METRICS } from '../config/reportParams';
+import { REPORT_PARAMS, API_BASE_URL, PRECOMPUTED_METRICS, REPORT_CONTEXT } from '../config/reportParams';
 
 // ─── Tipuri ──────────────────────────────────────────────────────────────────
 interface EPPoint { loss: number; exceedance_probability: number; }
@@ -37,6 +37,11 @@ function buildEpPath(
 const Page3 = () => {
   const [liveData, setLiveData] = useState<EPCurveResponse | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const currency      = REPORT_CONTEXT.currency ?? 'MDL';
+  const currencyLabel = currency === 'MDL' ? 'MDL' : currency === 'EUR' ? 'EUR' : 'USD';
+  const fmtVal = (v: number) =>
+    `${currencyLabel} ${v.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   useEffect(() => {
     const body = {
@@ -136,7 +141,7 @@ const Page3 = () => {
         <p style={{ fontSize: '11px', color: '#475569', marginBottom: '10px', lineHeight: '1.5' }}>
           Graficul prezintă probabilitatea ca o pierdere financiară să fie <strong>depășită</strong>, obținută prin
           simulare <strong>Monte Carlo ({d.n_simulations.toLocaleString('ro-RO')} iterații)</strong>. Axa Y indică probabilitatea de excedență;
-          axa X — severitatea pierderii (EUR).
+          axa X — severitatea pierderii ({currencyLabel}).
         </p>
 
         <div style={{ position: 'relative', paddingLeft: '40px', paddingBottom: '24px' }}>
@@ -171,7 +176,7 @@ const Page3 = () => {
               );
             })}
 
-            <text x={svgW / 2} y={svgH + 20} fontSize="9" textAnchor="middle" fill="#64748b">Severitate Pierdere (EUR)</text>
+            <text x={svgW / 2} y={svgH + 20} fontSize="9" textAnchor="middle" fill="#64748b">Severitate Pierdere ({currencyLabel})</text>
           </svg>
         </div>
       </div>
@@ -202,7 +207,7 @@ const Page3 = () => {
               <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 600 }}>Indicator</th>
               <th style={{ padding: '7px 10px', textAlign: 'center', fontWeight: 600 }}>Probabilitate Anuală</th>
               <th style={{ padding: '7px 10px', textAlign: 'center', fontWeight: 600 }}>Perioadă Revenire</th>
-              <th style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 600 }}>Pierdere Estimată (EUR)</th>
+              <th style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 600 }}>Pierdere Estimată ({currencyLabel})</th>
             </tr>
           </thead>
           <tbody>
@@ -217,9 +222,7 @@ const Page3 = () => {
                 <td style={{ padding: '7px 10px', borderBottom: '1px solid #e2e8f0', textAlign: 'center', color: row.red ? '#b91c1c' : '#64748b' }}>{row.prob}</td>
                 <td style={{ padding: '7px 10px', borderBottom: '1px solid #e2e8f0', textAlign: 'center', color: row.red ? '#b91c1c' : '#64748b' }}>{row.period}</td>
                 <td style={{ padding: '7px 10px', borderBottom: '1px solid #e2e8f0', textAlign: 'right', fontWeight: 'bold', color: row.red ? '#b91c1c' : '#1a202c' }}>
-                  {row.val > 0
-                    ? `€ ${row.val.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                    : '—'}
+                  {row.val > 0 ? fmtVal(row.val) : '—'}
                 </td>
               </tr>
             ))}

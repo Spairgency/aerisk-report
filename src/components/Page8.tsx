@@ -1,28 +1,70 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { REPORT_CONTEXT, PRECOMPUTED_METRICS } from '../config/reportParams';
 
 // ─────────────────────────────────────────────────────────────────
-// BACKEND TODO — aerisk-backend
+// SHA-256 CLIENT-SIDE — Web Crypto API (browser-native, zero deps)
 //
-// 1. Hash SHA-256 real → endpoint: GET /audit/document-hash
-//    → aerisk-backend/app/services/audit_signer.py (fișier nou)
-//    → Calculează SHA-256 pe JSON-ul complet al raportului (toate câmpurile)
-//    → Returnează: { hash, timestamp_utc, engine_version, report_id }
-//    → Ideal: semnat cu cheie privată (RSA/Ed25519) pentru verificare externă
+// Input: JSON.stringify({ context, metrics, reportId, timestamp })
+// Output: hex string uppercase 64 chars
 //
-// 2. Data provenance real → se populează automat din
-//    aerisk-engine/data_providers/ — fiecare provider raportează
-//    sursa, ultima actualizare și statusul de audit
+// BACKEND TODO (v2): înlocuiește cu endpoint GET /audit/document-hash
+//    → aerisk-backend/app/services/audit_signer.py
+//    → Semnătură RSA/Ed25519 pentru verificare externă
 // ─────────────────────────────────────────────────────────────────
+
+async function sha256hex(message: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(message);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+}
+
+/** Generează ID raport consistent cu Page1 — AERISK-YYYYMMDD-REGION-HZ */
+function genReportId(): string {
+  const d   = new Date();
+  const yy  = d.getFullYear();
+  const mm  = String(d.getMonth() + 1).padStart(2, '0');
+  const dd  = String(d.getDate()).padStart(2, '0');
+  const reg = (REPORT_CONTEXT.region ?? 'XX').replace(/\s+/g, '').slice(0, 6).toUpperCase();
+  const hz  = (REPORT_CONTEXT.hazardType ?? 'XX').slice(0, 2).toUpperCase();
+  return `AERISK-${yy}${mm}${dd}-${reg}-${hz}`;
+}
+
+/** Generează timestamp curent formatat în română cu fusul UTC */
+function genTimestamp(): string {
+  return new Date().toLocaleString('ro-RO', {
+    day: '2-digit', month: 'long', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', timeZone: 'UTC',
+  }) + ' UTC';
+}
 
 const Page8 = () => {
+  const reportId  = genReportId();
+  const timestamp = genTimestamp();
+  const [hashStr, setHashStr] = useState<string>('Calculând…');
+
+  useEffect(() => {
+    // Hashăm întregul payload de audit: context + metrics + id + timestamp
+    const payload = JSON.stringify({
+      context:   REPORT_CONTEXT,
+      metrics:   PRECOMPUTED_METRICS,
+      report_id: reportId,
+      timestamp,
+      engine:    'AERISK ENGINE v1.0.0',
+    });
+    sha256hex(payload)
+      .then(setHashStr)
+      .catch(() => setHashStr('HASH-UNAVAILABLE'));
+  }, []);
 
   const audit = {
-    hash:       'A4F832B2C3D4E5F6A7B8C9D0E1F2A3B4C5D6E7F8G9H0J1K2L3M4N5O6P7Q8R9S',
-    reportId:   'AERISK-ASSESS-2026-0452',
-    engine:     'AERISK ENGINE v1.0.0',
-    timestamp:  '19 Martie 2026, 10:21 UTC',
-    server:     'EU-CENTRAL-1 (Frankfurt)',
-    status:     'INTEGRU',
+    hash:      hashStr,
+    reportId,
+    engine:    'AERISK ENGINE v1.0.0',
+    timestamp,
+    server:    'EU-CENTRAL-1 (Frankfurt)',
+    status:    'INTEGRU',
   };
 
   const dataSources = [
@@ -146,7 +188,7 @@ const Page8 = () => {
             {/* Hash */}
             <div style={{ gridColumn: '1 / -1' }}>
               <div style={{ fontSize: '8px', color: '#64748b', marginBottom: '3px', letterSpacing: '0.06em' }}>SHA-256 DOCUMENT HASH</div>
-              <div style={{ fontFamily: 'monospace', fontSize: '9px', backgroundColor: '#f1f5f9', padding: '6px 8px', borderRadius: '3px', wordBreak: 'break-all', color: '#1e293b', border: '1px solid #e2e8f0' }}>
+              <div style={{ fontFamily: 'monospace', fontSize: '9px', backgroundColor: '#f1f5f9', padding: '6px 8px', borderRadius: '3px', wordBreak: 'break-all', color: hashStr === 'Calculând…' ? '#94a3b8' : '#1e293b', border: '1px solid #e2e8f0', fontStyle: hashStr === 'Calculând…' ? 'italic' : 'normal' }}>
                 {audit.hash}
               </div>
             </div>

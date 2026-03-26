@@ -1,6 +1,8 @@
 import React from 'react';
+import { REPORT_CONTEXT } from '../config/reportParams';
 
 const Page2 = () => {
+  const ctx = REPORT_CONTEXT;
 
   const pageStyle: React.CSSProperties = {
     width: '210mm',
@@ -33,7 +35,16 @@ const Page2 = () => {
     marginTop: '16px',
   };
 
-  const valoareAsigurata = 10000;
+  const valoareAsigurata = ctx.exposureValue ?? 10000;
+  const cropLabel        = ctx.crop ?? 'Cultură';
+  const variety          = ctx.variety ?? 'Soi standard';
+  const currency         = ctx.currency ?? 'MDL';
+  const currencyLabel    = currency === 'MDL' ? 'MDL' : currency === 'EUR' ? 'EUR' : 'USD';
+  const currencySymbol   = currency === 'MDL' ? 'MDL' : currency === 'EUR' ? '€' : '$';
+  const assetTypeLabel   = ctx.assetType === 'orchard' ? 'Livadă' : ctx.assetType === 'vineyard' ? 'Vie' : 'Cultură de câmp';
+
+  const fmtVal = (v: number) =>
+    `${v.toLocaleString('ro-RO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} ${currencyLabel}`;
 
   const damageRows = [
     { temp: '0°C → -0.5°C',   daunaP: 15,  desc: 'Cristale de gheață în spații intercelulare. Daune parțial reversibile.', lt: 'Sub LT15' },
@@ -66,7 +77,7 @@ const Page2 = () => {
         <h2 style={sectionTitle}>I. Matricea de Vulnerabilitate (Damage Function)</h2>
         <p style={{ fontSize: '11px', color: '#475569', marginBottom: '12px', lineHeight: '1.6' }}>
           Corelația dintre temperatura minimă înregistrată și severitatea pierderii economice,
-          bazată pe pragurile critice biologice ale soiului <strong>Idared</strong> în faza de înflorire
+          bazată pe pragurile critice biologice ale soiului <strong>{variety}</strong> în faza de înflorire
           (Aprilie — stadiul BBCH 60–69).
         </p>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
@@ -75,7 +86,7 @@ const Page2 = () => {
               <th style={{ padding: '8px 10px', textAlign: 'left' }}>Prag Temperatură</th>
               <th style={{ padding: '8px 10px', textAlign: 'center' }}>Prag Biologic</th>
               <th style={{ padding: '8px 10px', textAlign: 'center' }}>Daună (%)</th>
-              <th style={{ padding: '8px 10px', textAlign: 'right' }}>Pierdere (EUR)</th>
+              <th style={{ padding: '8px 10px', textAlign: 'right' }}>Pierdere ({currencyLabel})</th>
               <th style={{ padding: '8px 10px', textAlign: 'left' }}>Impact Biologic</th>
             </tr>
           </thead>
@@ -96,7 +107,7 @@ const Page2 = () => {
                     </div>
                   </td>
                   <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 'bold', borderBottom: '1px solid #e2e8f0', color: isTotal ? '#b91c1c' : '#1a202c' }}>
-                    € {pierdere.toLocaleString('ro-RO')}
+                    {fmtVal(pierdere)}
                   </td>
                   <td style={{ padding: '8px 10px', borderBottom: '1px solid #e2e8f0', color: '#475569', fontSize: '10px', lineHeight: '1.4' }}>{row.desc}</td>
                 </tr>
@@ -165,8 +176,8 @@ const Page2 = () => {
             {[
               {
                 icon: '🍎',
-                titlu: 'Soiul Idared — Specificitate',
-                text: 'Soiul Idared înflorește cu 5–7 zile mai devreme față de Golden Delicious, extinzând fereastra de expunere. Modelul calibrează pragurile LT50/LT100 per soi.',
+                titlu: `Soiul ${variety} — Specificitate`,
+                text: `Soiul ${variety} are o fereastră de înflorire specifică ce determină expunerea la îngheț. Modelul calibrează pragurile LT50/LT100 per soi și stadiu fenologic.`,
               },
               {
                 icon: '⏱️',

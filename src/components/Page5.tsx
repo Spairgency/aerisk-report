@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { REPORT_PARAMS, API_BASE_URL } from '../config/reportParams';
+import { REPORT_PARAMS, API_BASE_URL, REPORT_CONTEXT } from '../config/reportParams';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Datele istorice (bar chart) și QQ-plot rămân hardcodate — V2 TODO.
@@ -102,7 +102,7 @@ const Page5 = () => {
         <h2 style={sectionTitle}>XI. Metrici de Performanță ML (Backtesting 1994–2024)</h2>
         <p style={{ fontSize: '11px', color: '#475569', marginBottom: '10px', lineHeight: '1.5' }}>
           Modelul <strong>AERISK-FROST-V1.2</strong> a fost validat prin compararea pierderilor simulate
-          cu daunele istorice raportate în regiunea Ștefan Vodă pe 30 de ani (1994–2024).
+          cu daunele istorice raportate în <strong>regiunea {REPORT_CONTEXT.region}</strong> pe 30 de ani (1994–2024).
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '6px' }}>
           {metrics.map((m, i) => (
