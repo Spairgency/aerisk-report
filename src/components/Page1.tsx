@@ -18,35 +18,64 @@ const ASSET_LABELS: Record<string, string> = {
 };
 
 const HAZARD_LABELS: Record<string, string> = {
-  FROST:   'Îngheț Târziu (Frost)',
-  HAIL:    'Grindină (Hail)',
-  DROUGHT: 'Secetă (Drought)',
-  HEAT:    'Stres Termic (Heat)',
-  FLOOD:   'Inundație (Flood)',
+  FROST:   'Îngheț Târziu',
+  HAIL:    'Grindină',
+  DROUGHT: 'Secetă',
+  HEAT:    'Stres Termic',
+  FLOOD:   'Inundație',
 };
 
 const STAGE_LABELS: Record<string, string> = {
-  dormant:    'Repaus vegetativ',
-  budbreak:   'Dezmugurire',
-  emergence:  'Răsărire',
-  tillering:  'Înfrățire',
-  flowering:  'Înflorire',
-  fruit_set:  'Legarea fructelor',
-  grain_fill: 'Umplerea boabelor',
-  veraison:   'Pârgă',
-  harvest:    'Recoltare',
+  // stadii generice
+  dormant:        'Repaus vegetativ',
+  budbreak:       'Dezmugurire',
+  emergence:      'Răsărire',
+  tillering:      'Înfrățire',
+  flowering:      'Înflorire',
+  full_bloom:     'Înflorire deplină',
+  fruit_set:      'Legarea fructelor',
+  grain_fill:     'Umplerea boabelor',
+  veraison:       'Pârgă',
+  harvest:        'Recoltare',
+  petal_fall:     'Căderea petalelor',
+  // stadii BBCH specifice măr/piersic/prun
+  mouse_ear:      'Urechiușe de șoarece',
+  green_tip:      'Vârf verde',
+  half_inch:      'Dezmugurire ½ inch',
+  tight_cluster:  'Butonaș strâns',
+  open_cluster:   'Butonaș deschis',
+  pink_bud:       'Buton roz',
+  first_pink:     'Prim roz',
+  white_bud:      'Buton alb',
+  full_pink:      'Roz complet',
+  // stadii viță-de-vie
+  woolly_bud:     'Mugur lânos',
+  green_shoot:    'Lăstar verde',
+  leaf_5_6:       '5–6 frunze desfăcute',
+  bunch_visible:  'Ciorchine vizibil',
+  pre_flowering:  'Pre-înflorire',
+  // stadii cereale
+  germination:    'Germinare',
+  heading:        'Spicuire',
+  ripening:       'Maturare',
 };
 
 const RISK_COLOR: Record<string, string> = {
-  HIGH:   '#b91c1c',
-  MEDIUM: '#c2410c',
-  LOW:    '#15803d',
+  HIGH:   '#b91c1c',   // red-700
+  MEDIUM: '#ea580c',   // orange-600
+  LOW:    '#16a34a',   // green-600
 };
 
 const RISK_BG: Record<string, string> = {
-  HIGH:   '#fef2f2',
-  MEDIUM: '#fff7ed',
-  LOW:    '#f0fdf4',
+  HIGH:   '#fef2f2',   // red tint
+  MEDIUM: '#fff7ed',   // orange tint
+  LOW:    '#f0fdf4',   // green tint
+};
+
+const RISK_BORDER: Record<string, string> = {
+  HIGH:   '#fca5a5',   // red-300 — vizibil
+  MEDIUM: '#fdba74',   // orange-300 — vizibil
+  LOW:    '#86efac',   // green-300 — vizibil
 };
 
 const RISK_EMOJI: Record<string, string> = {
@@ -112,8 +141,9 @@ const Page1 = () => {
   const met = PRECOMPUTED_METRICS;
 
   const riskLevelUp  = (ctx.riskLevel ?? 'MEDIUM').toUpperCase();
-  const riskColor    = RISK_COLOR[riskLevelUp]  ?? '#c2410c';
+  const riskColor    = RISK_COLOR[riskLevelUp]  ?? '#ea580c';
   const riskBg       = RISK_BG[riskLevelUp]     ?? '#fff7ed';
+  const riskBorder   = RISK_BORDER[riskLevelUp] ?? '#fdba74';
   const riskEmoji    = RISK_EMOJI[riskLevelUp]  ?? '🟠';
   const riskLevelRo  = riskLevelUp === 'HIGH' ? 'RIDICAT' : riskLevelUp === 'LOW' ? 'SCĂZUT' : 'MEDIU';
   const hazardProb01 = ctx.hazardProbability ?? 0.20;
@@ -218,10 +248,10 @@ const Page1 = () => {
           </div>
 
           {/* DREAPTA — STATUS RISC (layout schiță) */}
-          <div style={{ backgroundColor: riskBg, border: `2px solid ${riskColor}55`, borderRadius: '6px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ backgroundColor: riskBg, border: `2px solid ${riskBorder}`, borderRadius: '6px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
 
             {/* Probabilitate — același stil ca panoul de risc */}
-            <div style={{ backgroundColor: riskBg, border: `1px solid ${riskColor}44`, borderRadius: '4px', padding: '8px 10px' }}>
+            <div style={{ backgroundColor: 'white', border: `1px solid ${riskBorder}`, borderRadius: '4px', padding: '8px 10px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
                 <span style={{ fontSize: '9px', letterSpacing: '0.06em', color: '#64748b', fontWeight: 700 }}>PROBABILITATE HAZARD</span>
                 <span style={{ fontSize: '15px', fontWeight: 900, color: riskColor }}>{hazardProb}%</span>
@@ -249,9 +279,30 @@ const Page1 = () => {
             </div>
 
             {/* Nivel încredere */}
-            <div style={{ borderTop: `1px solid ${riskColor}33`, paddingTop: '8px', fontSize: '9px', color: '#64748b', textAlign: 'center' }}>
+            <div style={{ borderTop: `1px solid ${riskBorder}`, paddingTop: '8px', fontSize: '9px', color: '#64748b', textAlign: 'center' }}>
               Nivel Încredere Date: <strong style={{ color: '#1a202c' }}>78%</strong>
               <div style={{ fontSize: '8px', color: '#94a3b8', marginTop: '2px' }}>Open-Meteo ERA5 · 90 zile</div>
+            </div>
+
+            {/* Primă de Risc Recomandată (AAL) */}
+            <div style={{
+              borderTop: `1px solid ${riskBorder}`,
+              paddingTop: '10px',
+              textAlign: 'center',
+              backgroundColor: 'white',
+              borderRadius: '4px',
+              padding: '10px 8px',
+              border: `1px solid ${riskBorder}`,
+            }}>
+              <div style={{ fontSize: '8.5px', color: '#64748b', letterSpacing: '0.06em', marginBottom: '4px', textTransform: 'uppercase', fontWeight: 700 }}>
+                Primă de Risc Recomandată (AAL)
+              </div>
+              <div style={{ fontSize: '14px', fontWeight: 900, color: riskColor }}>
+                {met ? fmt(met.aal, ctx.currency) : '—'}
+              </div>
+              <div style={{ fontSize: '8px', color: '#94a3b8', marginTop: '3px' }}>
+                / anual · bază calcul primă
+              </div>
             </div>
           </div>
         </div>
@@ -272,8 +323,8 @@ const Page1 = () => {
           <tbody>
             {[
               { key: 'AAL',     label: 'Pierdere Anuală Medie',                       period: '—',           val: met?.aal,    bg: '#f8fafc', bold: false },
-              { key: 'VaR 90%', label: 'Valoare la Risc — Nivel Baseline',            period: '1 din 10 ani', val: met?.var_90, bg: 'white',   bold: false },
-              { key: 'VaR 95%', label: 'Valoare la Risc — Bază Pricing',              period: '1 din 20 ani', val: met?.var_95, bg: '#f8fafc', bold: false },
+              { key: 'VaR 90%', label: 'Valoare la Risc — Scenariu de Bază',           period: '1 din 10 ani', val: met?.var_90, bg: 'white',   bold: false },
+              { key: 'VaR 95%', label: 'Valoare la Risc — Bază de Tarifare',          period: '1 din 20 ani', val: met?.var_95, bg: '#f8fafc', bold: false },
               { key: 'VaR 99%', label: 'Capital Subscriere (SCR) — Solvency II',      period: '1 din 100 ani', val: met?.var_99, bg: '#fff1f2', bold: true, red: true },
               { key: 'PML 99%', label: 'Pierdere Maximă Probabilă — SCR Calculat',   period: 'Percentila 99', val: met?.pml_99, bg: '#f8fafc', bold: true },
             ].map(r => (
