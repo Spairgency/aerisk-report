@@ -368,8 +368,8 @@ const Page1 = () => {
 
       {/* ── FOOTER ────────────────────────────────────────────────────────── */}
       <div style={{ marginTop: 'auto', borderTop: '1px solid #e2e8f0', paddingTop: '7px', fontSize: '8.5px', color: '#94a3b8', display: 'flex', justifyContent: 'space-between' }}>
-        <span>AERISK ENGINE v1.0.0 | Confidențial — Document pentru Underwriting | {ctx.region}, {ctx.country}</span>
-        <span>PAGINA 1 DIN 8</span>
+        <span>AERISK ENGINE v1.0.0 | Confidențial — Document pentru Subscriere | {ctx.region}, {ctx.country}</span>
+        <span>PAGINA 1 DIN 5</span>
       </div>
     </div>
   );

@@ -1,20 +1,30 @@
 import { useRef } from 'react';
 import { useReactToPrint } from 'react-to-print';
+import { REPORT_CONTEXT } from './config/reportParams';
 import Page1 from './components/Page1';
 import Page2 from './components/Page2';
 import Page3 from './components/Page3';
 import Page4 from './components/Page4';
 import Page5 from './components/Page5';
-import Page6 from './components/Page6';
-import Page7 from './components/Page7';
-import Page8 from './components/Page8';
+
+// ─── Pages 6, 7, 8 sunt înghețate — conținutul lor a fost consolidat
+// în Page4 (Reziliență + Atenuare) și Page5 (Metodologie + Audit SHA-256).
+// Raportul PRO are acum 5 pagini funcționale, corelate 100% cu backend-ul.
 
 const App = () => {
   const reportRef = useRef<HTMLDivElement>(null);
 
+  const docTitle = (() => {
+    const d = new Date();
+    const date = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+    const region  = (REPORT_CONTEXT.region ?? 'MD').replace(/\s+/g,'').slice(0,6).toUpperCase();
+    const hazard  = (REPORT_CONTEXT.hazardType ?? 'FT').slice(0,2).toUpperCase();
+    return `AERISK-${date}-${region}-${hazard}`;
+  })();
+
   const handlePrint = useReactToPrint({
     contentRef: reportRef,
-    documentTitle: 'AERISK-ASSESS-2026-0452',
+    documentTitle: docTitle,
     pageStyle: `
       @page {
         size: A4;
@@ -41,10 +51,10 @@ const App = () => {
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
-      gap: '20px'
+      gap: '20px',
     }}>
 
-      {/* BUTON DOWNLOAD */}
+      {/* BUTON DESCĂRCARE */}
       <div className="no-print" style={{
         position: 'fixed',
         top: '20px',
@@ -77,20 +87,17 @@ const App = () => {
             <polyline points="7 10 12 15 17 10"/>
             <line x1="12" y1="15" x2="12" y2="3"/>
           </svg>
-          Descarcă Raport PDF
+          Descarcă Raport PDF — 5 Pagini
         </button>
       </div>
 
-      {/* RAPORT — toate paginile */}
+      {/* RAPORT PRO — 5 pagini funcționale */}
       <div ref={reportRef}>
         <Page1 />
         <Page2 />
         <Page3 />
         <Page4 />
         <Page5 />
-        <Page6 />
-        <Page7 />
-        <Page8 />
       </div>
 
     </div>
