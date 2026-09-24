@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useReactToPrint } from 'react-to-print';
 import Page1 from './components/Page1';
 import Page2 from './components/Page2';
@@ -9,8 +9,30 @@ import Page6 from './components/Page6';
 import Page7 from './components/Page7';
 import Page8 from './components/Page8';
 
+// A4 width at 96 dpi (210mm). Pages keep their exact A4 layout; on narrow
+// screens the whole report is zoomed down to fit, like a PDF viewer.
+const A4_WIDTH_PX = 794;
+const SCREEN_GUTTER_PX = 16;
+
+const computeScale = () =>
+  typeof window === 'undefined'
+    ? 1
+    : Math.min(1, (window.innerWidth - SCREEN_GUTTER_PX) / A4_WIDTH_PX);
+
 const App = () => {
   const reportRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(computeScale);
+  const isNarrow = scale < 1;
+
+  useEffect(() => {
+    const onResize = () => setScale(computeScale());
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('orientationchange', onResize);
+    };
+  }, []);
 
   const handlePrint = useReactToPrint({
     contentRef: reportRef,
@@ -37,7 +59,8 @@ const App = () => {
     <div style={{
       backgroundColor: '#525659',
       minHeight: '100vh',
-      padding: '40px 0',
+      padding: isNarrow ? '64px 0 16px' : '40px 0',
+      overflowX: 'hidden',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
@@ -47,8 +70,8 @@ const App = () => {
       {/* BUTON DOWNLOAD */}
       <div className="no-print" style={{
         position: 'fixed',
-        top: '20px',
-        right: '28px',
+        top: isNarrow ? '12px' : '20px',
+        right: isNarrow ? '12px' : '28px',
         zIndex: 1000,
       }}>
         <button
@@ -81,7 +104,10 @@ const App = () => {
         </button>
       </div>
 
-      {/* RAPORT — toate paginile */}
+      {/* RAPORT — toate paginile.
+          Zoom lives on this outer wrapper, NOT on reportRef: react-to-print
+          clones only reportRef, so the printed PDF stays exact A4. */}
+      <div style={{ zoom: scale }}>
       <div ref={reportRef}>
         <Page1 />
         <Page2 />
@@ -91,6 +117,7 @@ const App = () => {
         <Page6 />
         <Page7 />
         <Page8 />
+      </div>
       </div>
 
     </div>
